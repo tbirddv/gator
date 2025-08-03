@@ -30,7 +30,7 @@ func FetchRSSFeed(ctx context.Context, url string) (*RSSFeed, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-
+	req.Header.Set("User-Agent", "gator")
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}

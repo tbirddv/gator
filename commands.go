@@ -49,5 +49,29 @@ func CommandInit(state *state) map[string]Command {
 		},
 	}
 
+	commands["agg"] = Command{
+		Name:        "agg",
+		Description: "Aggregate RSS feeds",
+		Execute: func() error {
+			return HandleAgg(state)
+		},
+	}
+
+	commands["addfeed"] = Command{
+		Name:        "addfeed",
+		Description: "Add a new RSS feed",
+		Execute: func() error {
+			return HandleCreateFeed(state)
+		},
+	}
+
+	commands["feeds"] = Command{
+		Name:        "feeds",
+		Description: "List all RSS feeds",
+		Execute: func() error {
+			return HandleGetFeeds(state)
+		},
+	}
+
 	return commands
 }

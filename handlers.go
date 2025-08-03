@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/tbirddv/gator/internal/database"
+	"github.com/tbirddv/gator/internal/rssfeed"
 )
 
 func HandleLogin(s *state) error {
@@ -103,6 +104,91 @@ func HandleGetUsers(s *state) error {
 		} else {
 			fmt.Printf("* %s\n", user.Name)
 		}
+	}
+	return nil
+}
+
+func HandleAgg(s *state) error {
+	var url string
+	if len(s.args) < 1 {
+		url = "https://www.wagslane.dev/index.xml" // Default RSS feed URL
+	} else {
+		url = s.args[0]
+	}
+
+	ctx := context.Background()
+	feed, err := rssfeed.FetchRSSFeed(ctx, url)
+	if err != nil {
+		return fmt.Errorf("failed to fetch RSS feed: %w", err)
+	}
+
+	feed.UnescapeTitleandDescription()
+
+	fmt.Printf("Title: %s\n", feed.Channel.Title)
+	fmt.Printf("Link: %s\n", feed.Channel.Link)
+	fmt.Printf("Description: %s\n", feed.Channel.Description)
+
+	for _, item := range feed.Channel.Items {
+		fmt.Printf("\nItem Title: %s\n", item.Title)
+		fmt.Printf("Item Link: %s\n", item.Link)
+		fmt.Printf("Item Description: %s\n", item.Description)
+		fmt.Printf("Published Date: %s\n", item.PubDate)
+	}
+
+	return nil
+}
+
+func HandleCreateFeed(s *state) error {
+	if len(s.args) < 2 {
+		return errors.New("feed name and URL are required")
+	}
+	name := s.args[0]
+	url := s.args[1]
+
+	if name == "" || url == "" {
+		return errors.New("feed name and URL cannot be empty")
+	}
+
+	user, err := s.queries.GetUserByName(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	feedParams := database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      name,
+		Url:       url,
+		UserID:    user.ID,
+	}
+
+	newFeed, err := s.queries.CreateFeed(context.Background(), feedParams)
+	if err != nil {
+		return fmt.Errorf("failed to create feed: %w", err)
+	}
+
+	fmt.Printf("Feed created successfully: %s (%s)\n", newFeed.Name, newFeed.Url)
+	fmt.Printf("Feed ID: %s\n", newFeed.ID)
+	fmt.Printf("Created At: %s\n", newFeed.CreatedAt)
+	fmt.Printf("Updated At: %s\n", newFeed.UpdatedAt)
+	return nil
+}
+
+func HandleGetFeeds(s *state) error {
+	feeds, err := s.queries.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to get feeds: %w", err)
+	}
+	if len(feeds) == 0 {
+		fmt.Println("No feeds found.")
+		return nil
+	}
+	for _, feed := range feeds {
+		fmt.Printf("Feed Name: %s\n", feed.Name)
+		fmt.Printf("Feed URL: %s\n", feed.Url)
+		fmt.Printf("User: %s\n", feed.UserName)
+		fmt.Println("-----------------------------")
 	}
 	return nil
 }
