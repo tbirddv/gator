@@ -149,7 +149,7 @@ func HandleCreateFeed(s *state) error {
 		return errors.New("feed name and URL cannot be empty")
 	}
 
-	user, err := s.queries.GetUserByName(context.Background(), s.config.CurrentUserName)
+	user, err := getLoggedInUser(s)
 	if err != nil {
 		return fmt.Errorf("failed to get current user: %w", err)
 	}
@@ -167,11 +167,15 @@ func HandleCreateFeed(s *state) error {
 	if err != nil {
 		return fmt.Errorf("failed to create feed: %w", err)
 	}
+	s.args[0] = s.args[1] // change args for expected input of HandleFollow
 
 	fmt.Printf("Feed created successfully: %s (%s)\n", newFeed.Name, newFeed.Url)
 	fmt.Printf("Feed ID: %s\n", newFeed.ID)
 	fmt.Printf("Created At: %s\n", newFeed.CreatedAt)
 	fmt.Printf("Updated At: %s\n", newFeed.UpdatedAt)
+	if err := HandleFollow(s); err != nil {
+		return fmt.Errorf("failed to follow feed after creation: %w", err)
+	}
 	return nil
 }
 
@@ -190,5 +194,95 @@ func HandleGetFeeds(s *state) error {
 		fmt.Printf("User: %s\n", feed.UserName)
 		fmt.Println("-----------------------------")
 	}
+	return nil
+}
+
+func HandleFollow(s *state) error {
+	if len(s.args) < 1 {
+		return errors.New("feed URL is required")
+	}
+	url := s.args[0]
+
+	// Check if the feed already exists
+	feed, err := s.queries.GetFeedByURL(context.Background(), url)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("failed to check feed existence: %w", err)
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		// Feed does not exist, but creating a new feed has a different usage pattern, inform the user
+		return fmt.Errorf("feed with URL %s does not exist. Use 'addfeed' command to add a new feed.\n Usage: addfeed <name> <url>", url)
+	}
+	user, err := getLoggedInUser(s)
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+	followParams := database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+	}
+	follow, err := s.queries.CreateFeedFollow(context.Background(), followParams)
+	if err != nil {
+		return fmt.Errorf("failed to create feed follow: %w", err)
+	}
+	fmt.Printf("User %s is now following feed %s\n", follow.UserName, follow.FeedName)
+	return nil
+}
+
+func HandleGetFollows(s *state) error {
+
+	user, err := getLoggedInUser(s)
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	follows, err := s.queries.GetFeedFollowsForUser(context.Background(), user.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get followed feeds for user %s: %w", user.Name, err)
+	}
+
+	if len(follows) == 0 {
+		fmt.Printf("User %s is not following any feeds.\n", user.Name)
+		return nil
+	}
+
+	fmt.Printf("Feeds followed by %s:\n", user.Name)
+	for _, follow := range follows {
+		fmt.Printf("- %s\n", follow.FeedName)
+	}
+	return nil
+}
+
+func HandleUnfollow(s *state) error {
+	if len(s.args) < 1 {
+		return errors.New("feed URL is required")
+	}
+	url := s.args[0]
+
+	// Check if the feed exists
+	feed, err := s.queries.GetFeedByURL(context.Background(), url)
+	if err != nil {
+		return fmt.Errorf("failed to get feed by URL: %w", err)
+	}
+
+	user, err := getLoggedInUser(s)
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	unfollowParams := database.UnfollowFeedParams{
+		FeedID: feed.ID,
+		UserID: user.ID,
+	}
+	// Attempt to delete the feed follow
+
+	err = s.queries.UnfollowFeed(context.Background(), unfollowParams)
+	if err != nil {
+		return fmt.Errorf("failed to unfollow feed: %w", err)
+	}
+
+	fmt.Printf("User %s has unfollowed feed %s\n", user.Name, feed.Name)
 	return nil
 }

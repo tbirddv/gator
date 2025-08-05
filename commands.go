@@ -73,5 +73,29 @@ func CommandInit(state *state) map[string]Command {
 		},
 	}
 
+	commands["follow"] = Command{
+		Name:        "follow",
+		Description: "Follow an RSS feed",
+		Execute: func() error {
+			return HandleFollow(state)
+		},
+	}
+
+	commands["following"] = Command{
+		Name:        "following",
+		Description: "List all RSS feeds followed by the current user",
+		Execute: func() error {
+			return HandleGetFollows(state)
+		},
+	}
+
+	commands["unfollow"] = Command{
+		Name:        "unfollow",
+		Description: "Unfollow an RSS feed for the current user",
+		Execute: func() error {
+			return HandleUnfollow(state)
+		},
+	}
+
 	return commands
 }
