@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/tbirddv/gator/internal/database"
-	"github.com/tbirddv/gator/internal/rssfeed"
 )
 
 func HandleLogin(s *state) error {
@@ -109,33 +108,25 @@ func HandleGetUsers(s *state) error {
 }
 
 func HandleAgg(s *state) error {
-	var url string
+	var timeBetweenRequests time.Duration
 	if len(s.args) < 1 {
-		url = "https://www.wagslane.dev/index.xml" // Default RSS feed URL
+		return errors.New("time between requests is required")
 	} else {
-		url = s.args[0]
+		var err error
+		timeBetweenRequests, err = time.ParseDuration(s.args[0])
+		if err != nil {
+			return fmt.Errorf("invalid duration: %w", err)
+		}
 	}
 
-	ctx := context.Background()
-	feed, err := rssfeed.FetchRSSFeed(ctx, url)
-	if err != nil {
-		return fmt.Errorf("failed to fetch RSS feed: %w", err)
+	ticker := time.NewTicker(timeBetweenRequests)
+	defer ticker.Stop()
+	for ; ; <-ticker.C {
+		err := scrapeFeeds(s)
+		if err != nil {
+			return fmt.Errorf("error scraping feeds: %v", err)
+		}
 	}
-
-	feed.UnescapeTitleandDescription()
-
-	fmt.Printf("Title: %s\n", feed.Channel.Title)
-	fmt.Printf("Link: %s\n", feed.Channel.Link)
-	fmt.Printf("Description: %s\n", feed.Channel.Description)
-
-	for _, item := range feed.Channel.Items {
-		fmt.Printf("\nItem Title: %s\n", item.Title)
-		fmt.Printf("Item Link: %s\n", item.Link)
-		fmt.Printf("Item Description: %s\n", item.Description)
-		fmt.Printf("Published Date: %s\n", item.PubDate)
-	}
-
-	return nil
 }
 
 func HandleCreateFeed(s *state) error {
