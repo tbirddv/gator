@@ -51,7 +51,7 @@ func CommandInit(state *state) map[string]Command {
 
 	commands["agg"] = Command{
 		Name:        "agg",
-		Description: "Aggregate RSS feeds",
+		Description: "Aggregate RSS feeds, Usage: agg <time_between_requests>",
 		Execute: func() error {
 			return HandleAgg(state)
 		},
