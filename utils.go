@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/lib/pq"
+
 	"github.com/tbirddv/gator/internal/database"
 	"github.com/tbirddv/gator/internal/rssfeed"
 )
@@ -27,6 +30,25 @@ func NewNullTime(t time.Time) sql.NullTime {
 		Time:  t,
 		Valid: true,
 	}
+}
+
+func parseFlexibleTimestamp(timestampStr string) (time.Time, error) {
+	formats := []string{
+		time.RFC3339,                // "2006-01-02T15:04:05Z07:00"
+		time.RFC1123Z,               // "Mon, 02 Jan 2006 15:04:05 -0700"
+		time.RFC1123,                // "Mon, 02 Jan 2006 15:04:05 MST"
+		"2006-01-02 15:04:05-07:00", // PostgreSQL format
+		"2006-01-02 15:04:05",       // Without timezone
+		"2006-01-02T15:04:05",       // ISO without timezone
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, timestampStr); err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("unable to parse timestamp: %s", timestampStr)
 }
 
 func scrapeFeeds(s *state) error {
@@ -53,7 +75,28 @@ func scrapeFeeds(s *state) error {
 	}
 
 	for _, item := range fetchedFeed.Channel.Items {
-		fmt.Printf("Item Title: %s\n", item.Title)
+		pubDate, err := parseFlexibleTimestamp(item.PubDate)
+		if err != nil {
+			fmt.Printf("Skipping item with invalid pubDate: %s\n", item.PubDate)
+			continue
+		}
+		postParams := database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       item.Title,
+			Url:         item.Link,
+			Description: sql.NullString{String: item.Description, Valid: item.Description != ""},
+			PublishedAt: pubDate,
+			FeedID:      feed.ID,
+		}
+		err = s.queries.CreatePost(context.Background(), postParams)
+		if err != nil {
+			if err, ok := err.(*pq.Error); ok && err.Code == "23505" {
+				continue // Skip duplicate posts
+			}
+			fmt.Printf("Error creating post: %v\n", err)
+		}
 	}
 
 	return nil

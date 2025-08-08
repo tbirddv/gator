@@ -97,5 +97,13 @@ func CommandInit(state *state) map[string]Command {
 		},
 	}
 
+	commands["browse"] = Command{
+		Name:        "browse",
+		Description: "Browse posts from Current User's followed feeds. Usage: browse [Number of Posts to Browse]",
+		Execute: func() error {
+			return HandleBrowse(state)
+		},
+	}
+
 	return commands
 }

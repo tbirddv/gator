@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -275,5 +276,39 @@ func HandleUnfollow(s *state) error {
 	}
 
 	fmt.Printf("User %s has unfollowed feed %s\n", user.Name, feed.Name)
+	return nil
+}
+
+func HandleBrowse(s *state) error {
+	var limit int32 = 2
+	if len(s.args) >= 1 {
+		input, err := strconv.Atoi(s.args[0])
+		if err != nil {
+			return fmt.Errorf("invalid limit value: %w", err)
+		}
+		limit = int32(input)
+	}
+	user, err := getLoggedInUser(s)
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+	browseParams := database.GetPostsForUserParams{
+		ID:    user.ID,
+		Limit: limit,
+	}
+	posts, err := s.queries.GetPostsForUser(context.Background(), browseParams)
+	if err != nil {
+		return fmt.Errorf("failed to get posts for user %s: %w", user.Name, err)
+	}
+	if len(posts) == 0 {
+		fmt.Printf("User %s is has no posts from followed feeds.\n", user.Name)
+		return nil
+	}
+	for _, post := range posts {
+		fmt.Printf("Post Title: %s\n", post.Title)
+		fmt.Printf("Post URL: %s\n", post.Url)
+		fmt.Printf("Published At: %s\n", post.PublishedAt)
+		fmt.Println("-----------------------------")
+	}
 	return nil
 }
