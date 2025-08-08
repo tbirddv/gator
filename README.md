@@ -30,37 +30,11 @@ chmod +x gator
 sudo mv gator /usr/local/bin/
 ```
 
-### Option 2: Clone and Use
-
-1. Clone the repository:
-```bash
-git clone https://github.com/tbirddv/gator.git
-cd gator
-```
-
-2. The pre-built executable is already included in the repository.
-
-### Setup
-
-1. Set up your PostgreSQL database and note the connection string.
-
-2. Create a configuration file `~/.gatorconfig.json`:
-```json
-{
-  "db_url": "postgres://username:password@localhost/gator?sslmode=disable",
-  "current_user_name": ""
-}
-```
-
-3. Ensure your PostgreSQL database exists and is accessible.
-
-4. You're ready to use Gator!
-
-## Building from Source (Optional)
+### Option 2: Build Yourself
 
 If you prefer to build from source:
 
-**Prerequisites:**
+**Additional Requirements:**
 - Go 1.19 or higher
 
 **Steps:**
@@ -70,6 +44,22 @@ cd gator
 go mod download
 go build -o gator
 ```
+
+### Setup
+
+1. Set up your PostgreSQL database and note the connection string. Schema are included in `sql/schema/`. These are set up for goose if you prefer to use that for migrations.
+
+2. Create a configuration file `~/.gatorconfig.json`:
+```json
+{
+  "db_url": "postgres://username:password@localhost/dbname?sslmode=disable",
+  "current_user_name": ""
+}
+```
+
+3. Ensure your PostgreSQL database exists and is accessible.
+
+4. You're ready to use Gator!
 
 ## Usage
 
@@ -90,7 +80,7 @@ go build -o gator
 ./gator users
 ```
 
-**Reset all users:**
+**Reset Database:**
 ```bash
 ./gator reset
 ```
@@ -164,7 +154,6 @@ Examples:
 
 ```
 .
-├── gator                   # Pre-built executable
 ├── main.go                 # Entry point and command routing
 ├── commands.go            # Command definitions and initialization
 ├── handlers.go            # Command handler implementations
@@ -179,7 +168,6 @@ Examples:
 │   └── rssfeed/
 │       └── rssfeed.go     # RSS feed fetching and parsing
 └── sql/
-    ├── queries/           # SQL queries for SQLC
     └── schema/           # Database migration files
 ```
 
@@ -204,7 +192,6 @@ The application uses the following main tables:
 1. Register and login:
 ```bash
 ./gator register alice
-./gator login alice
 ```
 
 2. Add and follow some feeds:
@@ -240,14 +227,6 @@ The application uses a JSON configuration file stored at `~/.gatorconfig.json`:
 - **Database connection issues**: Verify your PostgreSQL server is running and the connection string is correct
 - **Command not found**: Ensure you're running `./gator` from the correct directory or have added it to your PATH
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## License
 
-This project is part of the Boot.dev backend development course.
+This was a guided project and is part of the Boot.dev backend development course.
